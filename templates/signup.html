@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TASKR — Sign Up</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&family=Caveat:wght@700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-accent" aria-hidden="true"></div>
+  <div class="doodles" aria-hidden="true">
+    <span class="doodle doodle-star">✦</span>
+    <span class="doodle doodle-squiggle">~ ~ ~</span>
+    <span class="doodle doodle-circle"></span>
+    <span class="doodle doodle-arrow">➜</span>
+  </div>
+
+  <div class="auth-shell">
+    <section class="auth-panel">
+      <div>
+        <div class="auth-kicker">Start your TASKR space</div>
+        <h1 class="auth-title">Make your own task home.</h1>
+        <p class="auth-copy">
+          Create an account to keep your tasks private, track deadlines, and build a workspace that feels more like a sketchbook than a spreadsheet.
+        </p>
+
+        <div class="auth-bullets">
+          <div class="auth-bullet"><span class="auth-badge">1</span><span>Secure login with hashed passwords.</span></div>
+          <div class="auth-bullet"><span class="auth-badge">2</span><span>Save your tasks by account.</span></div>
+          <div class="auth-bullet"><span class="auth-badge">3</span><span>Keep the colorful doodle style.</span></div>
+        </div>
+      </div>
+
+      <div class="auth-footer">You can always jump back in later with the same email.</div>
+    </section>
+
+    <section class="auth-card">
+      <h2 class="panel-title">Sign Up</h2>
+      <p class="auth-subtitle">Create your account in a minute or less.</p>
+
+      {% if error %}
+      <div class="auth-error">{{ error }}</div>
+      {% endif %}
+
+      <form class="auth-form" method="post" action="{{ url_for('signup') }}">
+        <div class="field">
+          <label class="label" for="name">Name</label>
+          <input id="name" name="name" class="input" type="text" placeholder="Your name" required />
+        </div>
+
+        <div class="field">
+          <label class="label" for="email">Email</label>
+          <input id="email" name="email" class="input" type="email" placeholder="you@example.com" required />
+        </div>
+
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <input id="password" name="password" class="input" type="password" placeholder="At least 8 characters" required />
+        </div>
+
+        <div class="field">
+          <label class="label" for="confirm_password">Confirm Password</label>
+          <input id="confirm_password" name="confirm_password" class="input" type="password" placeholder="Repeat your password" required />
+        </div>
+
+        <div class="auth-actions">
+          <button class="btn-primary" type="submit">Create Account</button>
+          <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+        </div>
+      </form>
+    </section>
+  </div>
+</body>
+</html>

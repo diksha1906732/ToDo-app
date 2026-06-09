@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TASKR — Do The Things</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&family=Caveat:wght@700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+ <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  
+</head>
+<body>
+
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-accent" aria-hidden="true"></div>
+  <div class="doodles" aria-hidden="true">
+    <span class="doodle doodle-star">✦</span>
+    <span class="doodle doodle-squiggle">~ ~ ~</span>
+    <span class="doodle doodle-circle"></span>
+    <span class="doodle doodle-arrow">➜</span>
+  </div>
+
+  <div class="app">
+
+    <header class="header">
+      <div class="header__logo">
+        <span class="logo-mark">✦</span>
+        <span class="logo-text">TASKR</span>
+      </div>
+      <div class="header__meta">
+        <div class="header__user">
+          <span class="header__user-label">Logged in as</span>
+          <span class="header__user-name">{{ user or 'Creator' }}</span>
+          <a class="header__logout" href="{{ url_for('logout') }}">Logout</a>
+          <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">◐</button>
+        </div>
+        <div class="header__stats" id="stats">
+          <span class="stat"><span id="stat-total">0</span> <em>total</em></span>
+          <span class="stat-sep">·</span>
+          <span class="stat"><span id="stat-active">0</span> <em>active</em></span>
+          <span class="stat-sep">·</span>
+          <span class="stat"><span id="stat-done">0</span> <em>done</em></span>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <div class="dash-card">
+        <span class="dash-label">Pending</span>
+        <strong id="dash-pending">0</strong>
+      </div>
+      <div class="dash-card">
+        <span class="dash-label">Completed</span>
+        <strong id="dash-completed">0</strong>
+      </div>
+      <div class="dash-card">
+        <span class="dash-label">Completion</span>
+        <strong id="dash-percent">0%</strong>
+      </div>
+      <div class="dash-card">
+        <span class="dash-label">Streak</span>
+        <strong id="dash-streak">0 days</strong>
+      </div>
+    </section>
+
+    <section class="progress-wrap">
+      <div class="progress-head">
+        <span>Progress bar</span>
+        <span id="progress-text">0/0 tasks</span>
+      </div>
+      <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+    </section>
+
+    <section class="controls">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="search-input" class="search-input" type="text" placeholder="search tasks…" autocomplete="off" />
+      </div>
+
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="active">Active</button>
+        <button class="filter-btn" data-filter="completed">Done</button>
+      </div>
+
+      <div class="priority-filter">
+        <select id="priority-filter" class="select">
+          <option value="all">Any priority</option>
+          <option value="high">🔴 High</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+      </div>
+
+      <div class="sort-filter">
+        <select id="sort-filter" class="select">
+          <option value="manual">Manual order</option>
+          <option value="due">Sort by due date</option>
+          <option value="priority">Sort by priority</option>
+          <option value="created">Sort by date created</option>
+        </select>
+      </div>
+
+      <div class="due-filter">
+        <select id="due-filter" class="select">
+          <option value="all">Any due date</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Due today</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="no_due">No due date</option>
+        </select>
+      </div>
+
+      <div class="category-filter">
+        <input id="category-filter" class="search-input" type="text" placeholder="filter by category..." maxlength="60" autocomplete="off" />
+      </div>
+
+      <div class="calendar-filter">
+        <input id="calendar-date" class="input calendar-input" type="date" />
+      </div>
+    </section>
+
+    <main class="main">
+
+      <aside class="form-panel">
+        <h2 class="panel-title">New Task</h2>
+
+        <div class="field">
+          <label class="label" for="todo-title">
+            Title <span class="required">*</span>
+          </label>
+          <input
+            id="todo-title"
+            class="input"
+            type="text"
+            placeholder="What needs doing?"
+            maxlength="255"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="todo-desc">Notes</label>
+          <textarea
+            id="todo-desc"
+            class="input textarea"
+            placeholder="Optional details…"
+            rows="3"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="label" for="todo-category">Category</label>
+          <input
+            id="todo-category"
+            class="input"
+            type="text"
+            placeholder="work, study, personal..."
+            maxlength="60"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="todo-due-date">Due Date</label>
+          <input id="todo-due-date" class="input" type="date" />
+        </div>
+
+        <div class="field">
+          <label class="label">Priority</label>
+          <div class="priority-group" id="priority-group">
+            <button class="prio-btn" data-p="low">Low</button>
+            <button class="prio-btn active" data-p="medium">Medium</button>
+            <button class="prio-btn" data-p="high">High</button>
+          </div>
+        </div>
+
+        <button id="add-btn" class="btn-primary">
+          <span>+ Add Task</span>
+        </button>
+
+        <div id="form-error" class="form-error" hidden></div>
+
+        <button id="clear-btn" class="btn-ghost">
+          Clear Completed
+        </button>
+      </aside>
+
+      <div class="list-panel">
+        <div id="todo-list" class="todo-list">
+        </div>
+
+        <div id="empty-state" class="empty-state" hidden>
+          <span class="empty-icon">◎</span>
+          <p>Nothing here yet.</p>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-panel__head">
+            <h3>Productivity chart</h3>
+            <span>Last 7 days</span>
+          </div>
+          <div id="chart-bars" class="chart-bars"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+
+      <button id="modal-close" class="modal-close" aria-label="Close">
+        ✕
+      </button>
+
+      <h2 id="modal-title" class="panel-title">
+        Edit Task
+      </h2>
+
+      <div class="field">
+        <label class="label" for="edit-title">Title</label>
+        <input id="edit-title" class="input" type="text" maxlength="255" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="edit-desc">Notes</label>
+        <textarea id="edit-desc" class="input textarea" rows="3"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="edit-category">Category</label>
+        <input id="edit-category" class="input" type="text" maxlength="60" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="edit-due-date">Due Date</label>
+        <input id="edit-due-date" class="input" type="date" />
+      </div>
+
+      <div class="field">
+        <label class="label">Priority</label>
+        <div class="priority-group" id="edit-priority-group">
+          <button class="prio-btn" data-p="low">Low</button>
+          <button class="prio-btn active" data-p="medium">Medium</button>
+          <button class="prio-btn" data-p="high">High</button>
+        </div>
+      </div>
+
+      <div id="modal-error" class="form-error" hidden></div>
+
+      <div class="modal-actions">
+        <button id="modal-save" class="btn-primary">
+          Save Changes
+        </button>
+
+        <button id="modal-cancel" class="btn-ghost">
+          Cancel
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
+

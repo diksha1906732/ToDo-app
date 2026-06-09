@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TASKR — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&family=Caveat:wght@700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-accent" aria-hidden="true"></div>
+  <div class="doodles" aria-hidden="true">
+    <span class="doodle doodle-star">✦</span>
+    <span class="doodle doodle-squiggle">~ ~ ~</span>
+    <span class="doodle doodle-circle"></span>
+    <span class="doodle doodle-arrow">➜</span>
+  </div>
+
+  <div class="auth-shell">
+    <section class="auth-panel">
+      <div>
+        <div class="auth-kicker">Welcome back to TASKR</div>
+        <h1 class="auth-title">Login and get things moving.</h1>
+        <p class="auth-copy">
+          Jump back into your tasks, keep track of due dates, and stay organized with a playful dashboard built to make planning feel lighter.
+        </p>
+
+        <div class="auth-bullets">
+          <div class="auth-bullet"><span class="auth-badge">1</span><span>See overdue and today tasks instantly.</span></div>
+          <div class="auth-bullet"><span class="auth-badge">2</span><span>Keep your work, study, and personal lists separate.</span></div>
+          <div class="auth-bullet"><span class="auth-badge">3</span><span>Use the colorful workspace you already built.</span></div>
+        </div>
+      </div>
+
+      <div class="auth-footer">TASKR keeps your ideas, deadlines, and momentum in one place.</div>
+    </section>
+
+    <section class="auth-card">
+      <h2 class="panel-title">Login</h2>
+      <p class="auth-subtitle">Enter your account details to continue.</p>
+
+      {% if error %}
+      <div class="auth-error">{{ error }}</div>
+      {% endif %}
+
+      <form class="auth-form" method="post" action="{{ url_for('login') }}">
+        <div class="field">
+          <label class="label" for="email">Email</label>
+          <input id="email" name="email" class="input" type="email" placeholder="you@example.com" required />
+        </div>
+
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <input id="password" name="password" class="input" type="password" placeholder="Your password" required />
+        </div>
+
+        <div class="auth-actions">
+          <button class="btn-primary" type="submit">Login</button>
+          <p class="auth-switch">New here? <a href="{{ url_for('signup') }}">Create an account</a></p>
+        </div>
+      </form>
+    </section>
+  </div>
+</body>
+</html>

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS todos (
     priority    ENUM('low', 'medium', 'high')       DEFAULT 'medium',
   due_date    DATE,
     completed   TINYINT(1)                          DEFAULT 0,
+    alerted_at  DATETIME                            NULL,
     created_at  DATETIME                            DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME                            DEFAULT CURRENT_TIMESTAMP
                                                     ON UPDATE CURRENT_TIMESTAMP

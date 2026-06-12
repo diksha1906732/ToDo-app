@@ -16,6 +16,7 @@ let state = {
   editPriority: 'medium',
   sort: 'manual',
   calendar_date: '',
+  lastAlertKey: '',
 };
 
 // ── DOM refs ──────────────────────────────────
@@ -42,6 +43,12 @@ const $dashPercent    = document.getElementById('dash-percent');
 const $dashStreak     = document.getElementById('dash-streak');
 const $progressText   = document.getElementById('progress-text');
 const $progressFill   = document.getElementById('progress-fill');
+const $alertPanel     = document.getElementById('alert-panel');
+const $alertTitle     = document.getElementById('alert-title');
+const $alertCount     = document.getElementById('alert-count');
+const $alertCopy      = document.getElementById('alert-copy');
+const $alertList      = document.getElementById('alert-list');
+const $alertPermissionBtn = document.getElementById('alert-permission-btn');
 const $chartBars      = document.getElementById('chart-bars');
 const $sortFilter     = document.getElementById('sort-filter');
 const $calendarDate   = document.getElementById('calendar-date');
@@ -210,6 +217,66 @@ function updateDashboard(stats) {
   if ($progressFill) $progressFill.style.width = `${pct}%`;
 }
 
+function alertSignature(items) {
+  return items.map(item => item.id).join(',');
+}
+
+function notifyBrowser(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, { body });
+  } catch (error) {
+    console.warn('Notification failed', error);
+  }
+}
+
+function renderAlerts(alerts = {}) {
+  if (!$alertPanel) return;
+
+  const overdueTodos = Array.isArray(alerts.overdue_todos) ? alerts.overdue_todos : [];
+  const overdueCount = Number(alerts.overdue_count ?? overdueTodos.length ?? 0);
+  const key = alertSignature(overdueTodos);
+  const changed = key !== state.lastAlertKey;
+
+  state.lastAlertKey = key;
+
+  if (!overdueCount) {
+    $alertPanel.hidden = true;
+    return;
+  }
+
+  $alertPanel.hidden = false;
+  if ($alertTitle) $alertTitle.textContent = overdueCount === 1 ? '1 overdue task' : `${overdueCount} overdue tasks`;
+  if ($alertCount) $alertCount.textContent = String(overdueCount);
+  if ($alertCopy) {
+    $alertCopy.textContent = overdueCount === 1
+      ? 'This task has passed its due date and is still incomplete.'
+      : 'These tasks have passed their due dates and are still incomplete.';
+  }
+
+  if ($alertList) {
+    $alertList.innerHTML = '';
+    overdueTodos.slice(0, 5).forEach(todo => {
+      const item = document.createElement('li');
+      const dueDate = todo.due_date ? fmtDateShort(todo.due_date) : 'no due date';
+      item.textContent = `${todo.title} — due ${dueDate}`;
+      $alertList.appendChild(item);
+    });
+  }
+
+  if ($alertPermissionBtn) {
+    const supported = 'Notification' in window;
+    $alertPermissionBtn.hidden = !supported || Notification.permission === 'granted';
+  }
+
+  if (changed) {
+    const title = overdueCount === 1 ? '1 overdue task' : `${overdueCount} overdue tasks`;
+    const body = overdueTodos.slice(0, 3).map(todo => todo.title).join(', ');
+    toast(title, 'error');
+    notifyBrowser(title, body);
+  }
+}
+
 function renderChart(chart) {
   if (!$chartBars) return;
   $chartBars.innerHTML = '';
@@ -246,6 +313,7 @@ async function fetchTodos() {
     renderList(data.todos);
     updateStats(data.stats);
     updateDashboard(data.stats);
+    renderAlerts(data.alerts || {});
     renderChart(data.chart || []);
   } catch (e) {
     toast(e.message, 'error');
@@ -470,6 +538,28 @@ $modalClose.onclick  = closeModal;
 $modalCancel.onclick = closeModal;
 $overlay.onclick     = e => { if (e.target === $overlay) closeModal(); };
 
+if ($alertPermissionBtn) {
+  $alertPermissionBtn.onclick = async () => {
+    if (!('Notification' in window)) {
+      toast('Browser notifications are not supported here.', 'error');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        toast('Browser alerts enabled');
+        renderAlerts({ overdue_count: 0, overdue_todos: [] });
+        fetchTodos();
+      } else {
+        toast('Browser alerts were not enabled.', 'error');
+      }
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+  };
+}
+
 document.onkeydown = e => {
   if (e.key === 'Escape' && !$overlay.hidden) closeModal();
 };
@@ -484,3 +574,4 @@ function debounce(fn, ms) {
 // ── Init ──────────────────────────────────────
 initPrioGroup($prioGroup, 'medium');
 fetchTodos();
+setInterval(fetchTodos, 60000);

@@ -71,6 +71,21 @@
       <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
     </section>
 
+    <section id="alert-panel" class="alert-panel" hidden>
+      <div class="alert-panel__icon">!</div>
+      <div class="alert-panel__body">
+        <div class="alert-panel__head">
+          <strong id="alert-title">Overdue tasks</strong>
+          <span id="alert-count" class="alert-panel__count">0</span>
+        </div>
+        <p id="alert-copy" class="alert-panel__copy"></p>
+        <ul id="alert-list" class="alert-list"></ul>
+      </div>
+      <button id="alert-permission-btn" class="btn-ghost alert-panel__action" type="button">
+        Enable browser alerts
+      </button>
+    </section>
+
     <section class="controls">
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

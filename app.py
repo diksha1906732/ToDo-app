@@ -6,6 +6,8 @@ import mysql.connector
 from mysql.connector import Error
 import os
 from datetime import datetime, date
+from email.mime.text import MIMEText
+import smtplib
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -24,6 +26,16 @@ DB_CONFIG = {
     'database': os.environ.get('DB_NAME', 'todo_db'),
     'autocommit': True
 }
+
+MAIL_CONFIG = {
+    'host': os.environ.get('SMTP_HOST', ''),
+    'port': int(os.environ.get('SMTP_PORT', 587)),
+    'user': os.environ.get('SMTP_USER', ''),
+    'password': os.environ.get('SMTP_PASSWORD', ''),
+    'from': os.environ.get('SMTP_FROM', os.environ.get('SMTP_USER', 'noreply@todo-app.local')),
+    'use_tls': os.environ.get('SMTP_USE_TLS', '1').lower() not in ('0', 'false', 'no'),
+}
+ALERT_COOLDOWN_HOURS = int(os.environ.get('ALERT_COOLDOWN_HOURS', 24))
 
 
 def get_connection():
@@ -67,6 +79,7 @@ def init_db():
         _ensure_column(cursor, 'todos', 'category', "ALTER TABLE todos ADD COLUMN category VARCHAR(60) DEFAULT 'general' AFTER description")
         _ensure_column(cursor, 'todos', 'due_date', "ALTER TABLE todos ADD COLUMN due_date DATE NULL AFTER priority")
         _ensure_column(cursor, 'todos', 'completed_at', "ALTER TABLE todos ADD COLUMN completed_at DATETIME NULL AFTER completed")
+        _ensure_column(cursor, 'todos', 'alerted_at', "ALTER TABLE todos ADD COLUMN alerted_at DATETIME NULL AFTER completed_at")
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -231,8 +244,8 @@ def create_todo():
         cursor.execute("SELECT COALESCE(MAX(order_index), 0) + 1 AS next_order FROM todos WHERE user_id = %s", (user_id,))
         next_order = cursor.fetchone()['next_order']
         cursor.execute(
-            "INSERT INTO todos (user_id, order_index, title, description, category, priority, due_date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (user_id, next_order, title, description, category, priority, due_date)
+            "INSERT INTO todos (user_id, order_index, title, description, category, priority, due_date, alerted_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (user_id, next_order, title, description, category, priority, due_date, None)
         )
         new_id = cursor.lastrowid
         cursor.execute("SELECT * FROM todos WHERE id = %s", (new_id,))
@@ -309,6 +322,31 @@ def get_todos():
         cursor.execute(f"SELECT * FROM todos {where} {order_clause}", params)
         todos = [_serialize(t) for t in cursor.fetchall()]
 
+        cursor.execute(
+            """
+            SELECT id, title, due_date, priority, alerted_at
+            FROM todos
+            WHERE user_id = %s AND completed = 0 AND due_date IS NOT NULL AND due_date < CURDATE()
+            ORDER BY due_date ASC, order_index ASC, created_at DESC
+            """,
+            (session.get('user_id'),)
+        )
+        overdue_todos = [_serialize(row) for row in cursor.fetchall()]
+
+        if overdue_todos and _should_send_overdue_email(overdue_todos):
+            try:
+                _send_overdue_email(session.get('user_email'), session.get('user_name'), overdue_todos)
+                cursor.execute(
+                    """
+                    UPDATE todos
+                    SET alerted_at = NOW()
+                    WHERE user_id = %s AND completed = 0 AND due_date IS NOT NULL AND due_date < CURDATE()
+                    """,
+                    (session.get('user_id'),)
+                )
+            except Exception as email_error:
+                app.logger.warning('Overdue email alert failed: %s', email_error)
+
         # Stats
         cursor.execute("SELECT COUNT(*) AS total FROM todos WHERE user_id = %s", (session.get('user_id'),))
         total = cursor.fetchone()['total']
@@ -352,6 +390,10 @@ def get_todos():
                 'streak': streak,
                 'completed_today': next((item['count'] for item in last_7_days if item['day'] == date.today().isoformat()), 0),
             },
+            'alerts': {
+                'overdue_count': len(overdue_todos),
+                'overdue_todos': overdue_todos[:5],
+            },
             'chart': last_7_days,
         })
     except Error as e:
@@ -382,6 +424,7 @@ def get_todo(todo_id):
 def update_todo(todo_id):
     data = request.get_json()
     fields, params = [], []
+    reset_alerted_at = False
 
     if 'title' in data:
         title = data['title'].strip()
@@ -406,11 +449,17 @@ def update_todo(todo_id):
         if data.get('due_date') and parsed_due is None:
             return jsonify({'error': 'Invalid due date format. Use YYYY-MM-DD'}), 400
         fields.append('due_date = %s'); params.append(parsed_due)
+        reset_alerted_at = True
 
     if 'completed' in data:
         completed = bool(data['completed'])
         fields.append('completed = %s');   params.append(completed)
         fields.append('completed_at = %s'); params.append(datetime.now() if completed else None)
+        if not completed:
+            reset_alerted_at = True
+
+    if reset_alerted_at:
+        fields.append('alerted_at = %s'); params.append(None)
 
     if not fields:
         return jsonify({'error': 'No fields to update'}), 400
@@ -557,6 +606,61 @@ def _current_streak(cursor, user_id):
         streak += 1
         expected = expected.fromordinal(expected.toordinal() - 1)
     return streak
+
+
+def _should_send_overdue_email(overdue_todos):
+    if not MAIL_CONFIG['host']:
+        return False
+
+    oldest_pending = None
+    for todo in overdue_todos:
+        alerted_at = todo.get('alerted_at')
+        if alerted_at is None:
+            return True
+        if isinstance(alerted_at, str):
+            try:
+                alerted_at = datetime.fromisoformat(alerted_at)
+            except ValueError:
+                return True
+        if oldest_pending is None or alerted_at < oldest_pending:
+            oldest_pending = alerted_at
+
+    if oldest_pending is None:
+        return True
+
+    return datetime.now() - oldest_pending >= __import__('datetime').timedelta(hours=ALERT_COOLDOWN_HOURS)
+
+
+def _send_overdue_email(recipient_email, recipient_name, overdue_todos):
+    if not recipient_email or not MAIL_CONFIG['host']:
+        return
+
+    subject = f"TASKR overdue reminder ({len(overdue_todos)} task(s))"
+    lines = [
+        f"Hi {recipient_name or 'there'},",
+        "",
+        "You have overdue task(s) that are still incomplete:",
+        "",
+    ]
+    for todo in overdue_todos[:10]:
+        due_date = todo.get('due_date') or 'unknown date'
+        lines.append(f"- {todo.get('title', 'Untitled')} (due {due_date})")
+    lines.extend([
+        "",
+        "Open TASKR and mark them complete or update the due date.",
+    ])
+
+    message = MIMEText('\n'.join(lines), 'plain', 'utf-8')
+    message['Subject'] = subject
+    message['From'] = MAIL_CONFIG['from']
+    message['To'] = recipient_email
+
+    with smtplib.SMTP(MAIL_CONFIG['host'], MAIL_CONFIG['port'], timeout=10) as server:
+        if MAIL_CONFIG['use_tls']:
+            server.starttls()
+        if MAIL_CONFIG['user']:
+            server.login(MAIL_CONFIG['user'], MAIL_CONFIG['password'])
+        server.sendmail(MAIL_CONFIG['from'], [recipient_email], message.as_string())
 
 
 # ─────────────────────────────────────────────

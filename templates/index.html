@@ -22,7 +22,7 @@
 
   <div class="app">
 
-    <header class="header">
+    <header class="header" data-user-name="{{ user or 'Creator' }}" data-user-email="{{ user_email or '' }}" data-user-contact="{{ user_contact or '' }}">
       <div class="header__logo">
         <span class="logo-mark">✦</span>
         <span class="logo-text">TASKR</span>
@@ -31,6 +31,13 @@
         <div class="header__user">
           <span class="header__user-label">Logged in as</span>
           <span class="header__user-name">{{ user or 'Creator' }}</span>
+          <button id="profile-btn" class="profile-chip" type="button" aria-label="Edit profile">
+            <span id="profile-avatar" class="profile-chip__avatar">{{ (user or 'Creator')[:1] }}</span>
+            <span class="profile-chip__text">
+              <span class="profile-chip__label">Profile</span>
+              <span class="profile-chip__name">Edit info</span>
+            </span>
+          </button>
           <a class="header__logout" href="{{ url_for('logout') }}">Logout</a>
           <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">◐</button>
         </div>
@@ -270,6 +277,49 @@
         </button>
 
         <button id="modal-cancel" class="btn-ghost">
+          Cancel
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="profile-modal-overlay" class="modal-overlay" hidden>
+    <div class="modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+
+      <button id="profile-modal-close" class="modal-close" aria-label="Close">
+        ✕
+      </button>
+
+      <h2 id="profile-modal-title" class="panel-title">
+        Edit Profile
+      </h2>
+
+      <p class="profile-modal__copy">Update the name and contact number shown in your account header.</p>
+
+      <div class="field">
+        <label class="label" for="profile-name">Name</label>
+        <input id="profile-name" class="input" type="text" maxlength="120" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="profile-email">Email</label>
+        <input id="profile-email" class="input" type="email" readonly />
+      </div>
+
+      <div class="field">
+        <label class="label" for="profile-contact">Contact No</label>
+        <input id="profile-contact" class="input" type="tel" maxlength="30" placeholder="e.g. +91 98765 43210" />
+      </div>
+
+      <div id="profile-error" class="form-error" hidden></div>
+
+      <div class="modal-actions">
+        <button id="profile-save" class="btn-primary">
+          Save Profile
+        </button>
+
+        <button id="profile-cancel" class="btn-ghost">
           Cancel
         </button>
       </div>

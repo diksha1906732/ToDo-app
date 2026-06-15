@@ -53,6 +53,10 @@ const $chartBars      = document.getElementById('chart-bars');
 const $sortFilter     = document.getElementById('sort-filter');
 const $calendarDate   = document.getElementById('calendar-date');
 const $themeToggle    = document.getElementById('theme-toggle');
+const $header         = document.querySelector('.header');
+const $headerUserName  = document.querySelector('.header__user-name');
+const $profileBtn     = document.getElementById('profile-btn');
+const $profileAvatar  = document.getElementById('profile-avatar');
 
 // Modal
 const $overlay        = document.getElementById('modal-overlay');
@@ -66,6 +70,15 @@ const $modalSave      = document.getElementById('modal-save');
 const $modalClose     = document.getElementById('modal-close');
 const $modalCancel    = document.getElementById('modal-cancel');
 const $modalError     = document.getElementById('modal-error');
+const $profileOverlay = document.getElementById('profile-modal-overlay');
+const $profileTitle   = document.getElementById('profile-modal-title');
+const $profileName    = document.getElementById('profile-name');
+const $profileEmail   = document.getElementById('profile-email');
+const $profileContact = document.getElementById('profile-contact');
+const $profileSave    = document.getElementById('profile-save');
+const $profileClose   = document.getElementById('profile-modal-close');
+const $profileCancel  = document.getElementById('profile-cancel');
+const $profileError   = document.getElementById('profile-error');
 const $toast          = document.getElementById('toast');
 
 // ── Utilities ────────────────────────────────
@@ -162,6 +175,29 @@ function escHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+function getProfileState() {
+  return {
+    name: $header?.dataset?.userName || $headerUserName?.textContent || 'Creator',
+    email: $header?.dataset?.userEmail || '',
+    contactNo: $header?.dataset?.userContact || '',
+  };
+}
+
+function setProfileState(user) {
+  if (!user) return;
+  const name = user.name || 'Creator';
+  const contactNo = user.contact_no || '';
+
+  if ($header) {
+    $header.dataset.userName = name;
+    $header.dataset.userEmail = user.email || '';
+    $header.dataset.userContact = contactNo;
+  }
+
+  if ($headerUserName) $headerUserName.textContent = name;
+  if ($profileAvatar) $profileAvatar.textContent = name.trim().slice(0, 1).toUpperCase() || 'U';
 }
 
 function renderList(todos) {
@@ -453,6 +489,68 @@ async function clearCompleted() {
   }
 }
 
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load profile');
+
+    const user = data.user || {};
+    if ($profileName) $profileName.value = user.name || '';
+    if ($profileEmail) $profileEmail.value = user.email || '';
+    if ($profileContact) $profileContact.value = user.contact_no || '';
+    setProfileState(user);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function openProfileModal() {
+  clearError($profileError);
+  loadProfile().finally(() => {
+    if ($profileOverlay) {
+      $profileOverlay.hidden = false;
+      $profileName?.focus();
+    }
+  });
+}
+
+function closeProfileModal() {
+  if ($profileOverlay) $profileOverlay.hidden = true;
+}
+
+async function saveProfile() {
+  clearError($profileError);
+
+  const name = ($profileName?.value || '').trim();
+  const contactNo = ($profileContact?.value || '').trim();
+
+  if (!name) {
+    showError($profileError, 'Name cannot be empty.');
+    return;
+  }
+
+  if ($profileSave) $profileSave.disabled = true;
+
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, contact_no: contactNo }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save profile');
+
+    setProfileState(data.user || { name, contact_no: contactNo });
+    closeProfileModal();
+    toast('Profile updated ✦');
+  } catch (e) {
+    showError($profileError, e.message);
+  } finally {
+    if ($profileSave) $profileSave.disabled = false;
+  }
+}
+
 // ── Modal helpers ─────────────────────────────
 function openEditModal(todo) {
   console.log("Editing Todo:", todo);
@@ -480,6 +578,7 @@ function closeModal() {
 // ── Event listeners ───────────────────────────
 $addBtn.onclick   = createTodo;
 $clearBtn.onclick = clearCompleted;
+$profileBtn?.addEventListener('click', openProfileModal);
 
 $titleIn.onkeydown = e => { if (e.key === 'Enter') createTodo(); };
 
@@ -538,6 +637,11 @@ $modalClose.onclick  = closeModal;
 $modalCancel.onclick = closeModal;
 $overlay.onclick     = e => { if (e.target === $overlay) closeModal(); };
 
+$profileSave?.addEventListener('click', saveProfile);
+$profileClose?.addEventListener('click', closeProfileModal);
+$profileCancel?.addEventListener('click', closeProfileModal);
+$profileOverlay?.addEventListener('click', e => { if (e.target === $profileOverlay) closeProfileModal(); });
+
 if ($alertPermissionBtn) {
   $alertPermissionBtn.onclick = async () => {
     if (!('Notification' in window)) {
@@ -561,10 +665,14 @@ if ($alertPermissionBtn) {
 }
 
 document.onkeydown = e => {
-  if (e.key === 'Escape' && !$overlay.hidden) closeModal();
+  if (e.key !== 'Escape') return;
+  if ($overlay && !$overlay.hidden) closeModal();
+  if ($profileOverlay && !$profileOverlay.hidden) closeProfileModal();
 };
 
 $editTitle.onkeydown = e => { if (e.key === 'Enter') saveEdit(); };
+$profileName?.addEventListener('keydown', e => { if (e.key === 'Enter') saveProfile(); });
+$profileContact?.addEventListener('keydown', e => { if (e.key === 'Enter') saveProfile(); });
 
 function debounce(fn, ms) {
   let t;
@@ -573,5 +681,6 @@ function debounce(fn, ms) {
 
 // ── Init ──────────────────────────────────────
 initPrioGroup($prioGroup, 'medium');
+setProfileState(getProfileState());
 fetchTodos();
 setInterval(fetchTodos, 60000);

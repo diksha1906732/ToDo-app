@@ -86,10 +86,12 @@ def init_db():
                 id            INT AUTO_INCREMENT PRIMARY KEY,
                 name          VARCHAR(120)  NOT NULL,
                 email         VARCHAR(255)  NOT NULL UNIQUE,
+                contact_no    VARCHAR(30)   NULL,
                 password_hash VARCHAR(255)  NOT NULL,
                 created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        _ensure_column(cursor, 'users', 'contact_no', "ALTER TABLE users ADD COLUMN contact_no VARCHAR(30) NULL AFTER email")
         conn.commit()
         cursor.close()
         conn.close()
@@ -106,7 +108,12 @@ def init_db():
 def index():
     if not session.get('user_id'):
         return redirect(url_for('login'))
-    return render_template('index.html', user=session.get('user_name'))
+    return render_template(
+        'index.html',
+        user=session.get('user_name'),
+        user_email=session.get('user_email'),
+        user_contact=session.get('user_contact_no', ''),
+    )
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -136,6 +143,7 @@ def login():
                     session['user_id'] = user['id']
                     session['user_name'] = user['name']
                     session['user_email'] = user['email']
+                    session['user_contact_no'] = user.get('contact_no') or ''
                     return redirect(url_for('index'))
             except Error as e:
                 error = str(e)
@@ -172,8 +180,8 @@ def signup():
                     error = 'That email is already registered.'
                 else:
                     cursor.execute(
-                        "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)",
-                        (name, email, generate_password_hash(password))
+                        "INSERT INTO users (name, email, contact_no, password_hash) VALUES (%s, %s, %s, %s)",
+                        (name, email, None, generate_password_hash(password))
                     )
                     conn.commit()
                     user_id = cursor.lastrowid
@@ -182,6 +190,7 @@ def signup():
                     session['user_id'] = user_id
                     session['user_name'] = name
                     session['user_email'] = email
+                    session['user_contact_no'] = ''
                     return redirect(url_for('index'))
 
                 cursor.close()
@@ -216,6 +225,61 @@ def login_required(view):
             return redirect(url_for('login'))
         return view(*args, **kwargs)
     return wrapped
+
+
+@app.route('/api/profile', methods=['GET', 'PUT'])
+@login_required
+def profile():
+    user_id = session.get('user_id')
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        if request.method == 'GET':
+            cursor.execute(
+                "SELECT id, name, email, contact_no, created_at FROM users WHERE id = %s",
+                (user_id,)
+            )
+            user = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            return jsonify({'user': user})
+
+        data = request.get_json(silent=True) or {}
+        name = (data.get('name') or '').strip()
+        contact_no = (data.get('contact_no') or '').strip()
+
+        if not name:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'Name is required'}), 400
+
+        if contact_no == '':
+            contact_no = None
+
+        cursor.execute(
+            "UPDATE users SET name = %s, contact_no = %s WHERE id = %s",
+            (name, contact_no, user_id)
+        )
+        conn.commit()
+        cursor.execute(
+            "SELECT id, name, email, contact_no, created_at FROM users WHERE id = %s",
+            (user_id,)
+        )
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        session['user_name'] = user['name']
+        session['user_contact_no'] = user.get('contact_no') or ''
+
+        return jsonify({'message': 'Profile updated', 'user': user})
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ── CREATE ────────────────────────────────────

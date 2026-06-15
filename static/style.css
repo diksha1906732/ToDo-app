@@ -283,6 +283,51 @@ body {
   color: var(--text);
   font-weight: 700;
 }
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  border: var(--stroke);
+  border-radius: 999px;
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 4px 0 rgba(31,31,31,.12);
+  cursor: pointer;
+  color: var(--text);
+  transition: transform .15s, box-shadow .15s;
+}
+.profile-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 0 rgba(31,31,31,.12);
+}
+.profile-chip__avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.profile-chip__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+}
+.profile-chip__label {
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-dim);
+}
+.profile-chip__name {
+  font-size: .9rem;
+  font-weight: 700;
+}
 .header__logout {
   color: #7c1f0f;
   text-decoration: none;
@@ -665,6 +710,15 @@ body {
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+.profile-modal {
+  max-width: 520px;
+}
+.profile-modal__copy {
+  margin: -2px 0 12px;
+  color: var(--text-dim);
+  font-size: .95rem;
+}
+
 .modal-close {
   position: absolute; top: 14px; right: 14px;
   background: #fff;
@@ -719,6 +773,10 @@ body {
     width: 100%;
   }
 
+  .header__user {
+    flex-wrap: wrap;
+  }
+
   .doodle-squiggle,
   .doodle-circle,
   .doodle-arrow {
@@ -763,6 +821,10 @@ body {
     left: 12px;
     max-width: none;
     bottom: 12px;
+  }
+
+  .profile-chip__name {
+    display: none;
   }
 }
 
